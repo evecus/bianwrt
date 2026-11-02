@@ -6,6 +6,7 @@ mod pkg;
 mod plugins;
 mod state;
 mod system;
+mod webassets;
 
 use axum::extract::DefaultBodyLimit;
 use axum::middleware;
@@ -13,7 +14,6 @@ use axum::routing::{delete, get, post};
 use axum::Router;
 use state::AppState;
 use std::path::PathBuf;
-use tower_http::services::{ServeDir, ServeFile};
 
 fn main() {
     let n = std::thread::available_parallelism().map(|v| v.get()).unwrap_or(4);
@@ -41,28 +41,13 @@ async fn async_main() {
     let etc_dir = PathBuf::from(
         std::env::var("BIANWRT_PLUGIN_ETC").unwrap_or_else(|_| "/etc/bianwrt/plugins".into()),
     );
-    let web_dist = std::env::var("BIANWRT_WEB")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            let exe = std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.to_path_buf()));
-            let cands = vec![
-                exe.clone().map(|p| p.join("web/dist")),
-                Some(PathBuf::from("./web/dist")),
-            ];
-            cands
-                .into_iter()
-                .flatten()
-                .find(|p| p.join("index.html").exists())
-                .unwrap_or_else(|| PathBuf::from("./web/dist"))
-        });
-
-    let st = state::init(&home, plugins_dir, etc_dir, web_dist.clone());
+    let st = state::init(&home, plugins_dir, etc_dir);
     let port: u16 = std::env::var("BIANWRT_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
         .unwrap_or(8088);
 
-    tracing::info!("bianwrt 启动: home={} plugins={} web={}", home.display(), st.plugins_dir.display(), web_dist.display());
+    tracing::info!("bianwrt 启动: home={} plugins={} (前端资源已内嵌)", home.display(), st.plugins_dir.display());
 
     // boot-time apply of persisted firewall / dnsmasq config
     tokio::spawn(boot_apply(st.clone()));
@@ -100,13 +85,10 @@ async fn async_main() {
         .route("/plugins/{name}/", get(plugins::plugin_static))
         .route("/plugins/{name}/{*rest}", get(plugins::plugin_static_rest));
 
-    let web = ServeDir::new(&web_dist)
-        .not_found_service(ServeFile::new(web_dist.join("index.html")));
-
     let app = Router::new()
         .nest("/api", api)
         .merge(plugin_pages)
-        .fallback_service(web)
+        .fallback(webassets::serve)
         .layer(DefaultBodyLimit::max(256 * 1024 * 1024))
         .with_state(st.clone());
 

@@ -19,9 +19,6 @@ jobs:
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             arch: arm64
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            arch: amd64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +45,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile || pnpm install --no-fund --no-audit
           pnpm build
+        # 顺序很重要：前端产物在 cargo build 时被 rust-embed 内嵌进二进制
 
       - name: Build backend (${{ matrix.target }})
         run: cargo build --release --target ${{ matrix.target }}
@@ -57,9 +55,8 @@ jobs:
           VER="${GITHUB_REF_NAME#v}"
           [ "$VER" = "${GITHUB_REF_NAME}" ] && VER="${GITHUB_SHA::8}"
           PKG="${APP_NAME}-${VER}-linux-${matrix.arch}"
-          mkdir -p "dist/${PKG}/web" "dist/${PKG}/scripts"
+          mkdir -p "dist/${PKG}/scripts"
           install -Dm755 "target/${{ matrix.target }}/release/${BIN_NAME}" "dist/${PKG}/${BIN_NAME}"
-          cp -r web/dist/* "dist/${PKG}/web/"
           cp scripts/install.sh scripts/bianwrt.service "dist/${PKG}/scripts/"
           cp README.md "dist/${PKG}/" 2>/dev/null || true
           tar czf "${PKG}.tar.gz" -C dist "${PKG}"

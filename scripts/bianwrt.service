@@ -6,7 +6,6 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/bianwrt-server
-Environment=BIANWRT_WEB=/opt/bianwrt/web
 Environment=BIANWRT_HOME=/var/lib/bianwrt
 Environment=BIANWRT_PLUGIN_DIR=/opt/bianwrt/plugins
 WorkingDirectory=/opt/bianwrt

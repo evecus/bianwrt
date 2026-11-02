@@ -12,10 +12,9 @@ pub struct AppState {
     pub home: PathBuf,
     pub plugins_dir: PathBuf,
     pub etc_dir: PathBuf,
-    pub web_dist: PathBuf,
 }
 
-pub fn init(home: &PathBuf, plugins_dir: PathBuf, etc_dir: PathBuf, web_dist: PathBuf) -> AppState {
+pub fn init(home: &PathBuf, plugins_dir: PathBuf, etc_dir: PathBuf) -> AppState {
     std::fs::create_dir_all(home).expect("create home dir");
     std::fs::create_dir_all(&plugins_dir).expect("create plugins dir");
     std::fs::create_dir_all(&etc_dir).expect("create plugin etc dir");
@@ -72,7 +71,6 @@ pub fn init(home: &PathBuf, plugins_dir: PathBuf, etc_dir: PathBuf, web_dist: Pa
         home: home.clone(),
         plugins_dir,
         etc_dir,
-        web_dist,
     }
 }
 
