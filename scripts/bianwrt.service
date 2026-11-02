@@ -1,0 +1,17 @@
+[Unit]
+Description=bianwrt - OpenWrt-like server management panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/bianwrt-server
+Environment=BIANWRT_WEB=/opt/bianwrt/web
+Environment=BIANWRT_HOME=/var/lib/bianwrt
+Environment=BIANWRT_PLUGIN_DIR=/opt/bianwrt/plugins
+WorkingDirectory=/opt/bianwrt
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,82 @@
+name: build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  BIN_NAME: bianwrt-server
+  APP_NAME: bianwrt
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          # GitHub 官方免费 arm64 runner（公开仓库免费），原生编译无需 QEMU/cross
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            arch: arm64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            arch: amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build frontend
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile || pnpm install --no-fund --no-audit
+          pnpm build
+
+      - name: Build backend (${{ matrix.target }})
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          [ "$VER" = "${GITHUB_REF_NAME}" ] && VER="${GITHUB_SHA::8}"
+          PKG="${APP_NAME}-${VER}-linux-${matrix.arch}"
+          mkdir -p "dist/${PKG}/web" "dist/${PKG}/scripts"
+          install -Dm755 "target/${{ matrix.target }}/release/${BIN_NAME}" "dist/${PKG}/${BIN_NAME}"
+          cp -r web/dist/* "dist/${PKG}/web/"
+          cp scripts/install.sh scripts/bianwrt.service "dist/${PKG}/scripts/"
+          cp README.md "dist/${PKG}/" 2>/dev/null || true
+          tar czf "${PKG}.tar.gz" -C dist "${PKG}"
+          sha256sum "${PKG}.tar.gz" > "${PKG}.tar.gz.sha256"
+          echo "PKG=${PKG}.tar.gz" >> $GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG }}
+          path: |
+            *.tar.gz
+            *.tar.gz.sha256
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.tar.gz
+            *.tar.gz.sha256

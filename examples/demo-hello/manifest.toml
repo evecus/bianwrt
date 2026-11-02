@@ -1,0 +1,7 @@
+[package]
+name = "demo-hello"
+version = "1.0.0"
+description = "示例插件：展示面板静态页面托管能力"
+author = "bianwrt"
+homepage = "https://example.com"
+web_mode = "static"

@@ -1,0 +1,11 @@
+[package]
+name = "demo-rootfs"
+version = "1.0.0"
+description = "rootfs 结构测试插件"
+author = "bianwrt"
+web_mode = "static"
+conffiles = ["etc/demo-rootfs/config.json"]
+
+[service]
+exec = "/usr/local/bin/demo-rootfs-tool"
+args = []
