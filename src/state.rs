@@ -9,16 +9,25 @@ pub struct AppState {
     pub sys: std::sync::Arc<tokio::sync::Mutex<sysinfo::System>>,
     pub pkg_tx: tokio::sync::broadcast::Sender<String>,
     pub pkg_running: std::sync::Arc<tokio::sync::Mutex<bool>>,
-    pub home: PathBuf,
+    /// 工作根目录（BIANWRT_WORK_DIR，默认 /etc/bianwrt）
+    pub work_dir: PathBuf,
+    /// 数据子目录：SQLite、生成的配置文件、插件文件清单
+    pub data_dir: PathBuf,
+    /// 插件安装目录
     pub plugins_dir: PathBuf,
-    pub etc_dir: PathBuf,
+    /// 插件配置目录（类似 OpenWrt /etc/config）
+    pub conf_dir: PathBuf,
 }
 
-pub fn init(home: &PathBuf, plugins_dir: PathBuf, etc_dir: PathBuf) -> AppState {
-    std::fs::create_dir_all(home).expect("create home dir");
+/// 统一目录布局：<work_dir>/{data,plugins,conf}
+pub fn init(work_dir: &PathBuf) -> AppState {
+    let data_dir = work_dir.join("data");
+    let plugins_dir = work_dir.join("plugins");
+    let conf_dir = work_dir.join("conf");
+    std::fs::create_dir_all(&data_dir).expect("create data dir");
     std::fs::create_dir_all(&plugins_dir).expect("create plugins dir");
-    std::fs::create_dir_all(&etc_dir).expect("create plugin etc dir");
-    let db = Connection::open(home.join("bianwrt.db")).expect("open sqlite");
+    std::fs::create_dir_all(&conf_dir).expect("create conf dir");
+    let db = Connection::open(data_dir.join("bianwrt.db")).expect("open sqlite");
     db.execute_batch(
         r#"
         PRAGMA journal_mode=WAL;
@@ -68,9 +77,10 @@ pub fn init(home: &PathBuf, plugins_dir: PathBuf, etc_dir: PathBuf) -> AppState 
         sys: std::sync::Arc::new(tokio::sync::Mutex::new(sys)),
         pkg_tx,
         pkg_running: std::sync::Arc::new(tokio::sync::Mutex::new(false)),
-        home: home.clone(),
+        work_dir: work_dir.clone(),
+        data_dir,
         plugins_dir,
-        etc_dir,
+        conf_dir,
     }
 }
 

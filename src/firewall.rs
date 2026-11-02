@@ -324,7 +324,7 @@ pub async fn apply(State(state): State<AppState>) -> Response {
 
 async fn do_apply(state: &AppState, cfg: &FwConfig) -> Response {
     let script = render_nft(cfg);
-    let path = state.home.join("bianwrt.nft");
+    let path = state.data_dir.join("bianwrt.nft");
     if std::fs::write(&path, &script).is_err() {
         return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "写入规则文件失败").into_response();
     }

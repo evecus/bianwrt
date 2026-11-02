@@ -8,10 +8,10 @@
   <n-card title="路由表">
     <n-tabs type="line">
       <n-tab-pane name="v4" tab="IPv4">
-        <n-code :code="pretty(routes.v4)" language="json" />
+        <pre class="code-block">{{ pretty(routes.v4) }}</pre>
       </n-tab-pane>
       <n-tab-pane name="v6" tab="IPv6">
-        <n-code :code="pretty(routes.v6)" language="json" />
+        <pre class="code-block">{{ pretty(routes.v6) }}</pre>
       </n-tab-pane>
     </n-tabs>
   </n-card>

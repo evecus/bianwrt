@@ -44,7 +44,7 @@
   <n-modal v-model:show="uninstallVisible" preset="dialog" type="warning" :title="`卸载 ${uninstallTarget?.name}`" :positive-text="'确认卸载'" :negative-text="'取消'" :loading="uninstalling" @positive-click="confirmUninstall">
     <n-space vertical>
       <div>将按文件清单精确清理插件铺到系统的文件，并删除插件目录与 systemd 服务。</div>
-      <n-checkbox v-model:checked="purgeConfig">同时删除配置目录 /etc/bianwrt/plugins/{{ uninstallTarget?.name }}（含用户配置，默认保留）</n-checkbox>
+      <n-checkbox v-model:checked="purgeConfig">同时删除配置目录 /etc/bianwrt/conf/{{ uninstallTarget?.name }}（含用户配置，默认保留）</n-checkbox>
     </n-space>
   </n-modal>
 
@@ -99,8 +99,10 @@ manifest.toml 示例：
 
 安装后：
 - rootfs/ 铺到真实根目录（/usr/bin、/etc/... 全根结构，同 OpenWrt ipk）
-- 文件清单存于 /var/lib/bianwrt/plugin-files/<name>.list（卸载精确清理的依据）
-- 插件配置目录 /etc/bianwrt/plugins/<name>/（同 /etc/config，卸载默认保留）
+- 数据统一在 BIANWRT_WORK_DIR（默认 /etc/bianwrt）下：
+  - data/ — SQLite、防火墙规则文件、插件文件清单 plugin-files/<name>.list
+  - plugins/ — 插件安装目录
+  - conf/ — 插件配置目录 <name>/（同 /etc/config，卸载默认保留）
 - ui 挂载于 /plugins/<name>/，带界面的插件出现在左侧栏「服务」分组
 - systemd 服务名：bianwrt-plugin-<name>.service`
 

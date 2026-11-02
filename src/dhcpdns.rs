@@ -215,7 +215,7 @@ pub async fn apply(State(state): State<AppState>) -> Response {
     if !ok {
         return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "dnsmasq 重启失败，请检查配置").into_response();
     }
-    let _ = std::fs::write(state.home.join("dnsmasq-preview.conf"), &content);
+    let _ = std::fs::write(state.data_dir.join("dnsmasq-preview.conf"), &content);
     Json(json!({"ok": true})).into_response()
 }
 

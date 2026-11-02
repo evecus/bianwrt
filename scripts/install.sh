@@ -19,11 +19,11 @@ for cmd in nft; do
 done
 
 install -Dm755 "$BIN" /usr/local/bin/bianwrt-server
-mkdir -p /opt/bianwrt/plugins /var/lib/bianwrt /etc/bianwrt/plugins
+mkdir -p /etc/bianwrt/data /etc/bianwrt/plugins /etc/bianwrt/conf
 install -Dm644 "$ROOT/scripts/bianwrt.service" /etc/systemd/system/bianwrt.service
 systemctl daemon-reload
 systemctl enable --now bianwrt.service
 
 echo
 echo "bianwrt 已启动: http://<服务器IP>:8088（前端资源内嵌于二进制）"
-echo "数据目录: /var/lib/bianwrt   插件目录: /opt/bianwrt/plugins   插件配置: /etc/bianwrt/plugins"
+echo "工作目录: /etc/bianwrt（data=数据 plugins=插件 conf=插件配置，可用 BIANWRT_WORK_DIR 指定）"

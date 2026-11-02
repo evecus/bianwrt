@@ -33,21 +33,17 @@ async fn async_main() {
         )
         .init();
 
-    let home = PathBuf::from(std::env::var("BIANWRT_HOME").unwrap_or_else(|_| "/var/lib/bianwrt".into()));
-    let plugins_dir = PathBuf::from(
-        std::env::var("BIANWRT_PLUGIN_DIR").unwrap_or_else(|_| "/opt/bianwrt/plugins".into()),
+    // 统一工作目录：<BIANWRT_WORK_DIR>/{data,plugins,conf}
+    let work_dir = PathBuf::from(
+        std::env::var("BIANWRT_WORK_DIR").unwrap_or_else(|_| "/etc/bianwrt".into()),
     );
-    // 插件配置目录（类似 OpenWrt 的 /etc/config，卸载默认保留）
-    let etc_dir = PathBuf::from(
-        std::env::var("BIANWRT_PLUGIN_ETC").unwrap_or_else(|_| "/etc/bianwrt/plugins".into()),
-    );
-    let st = state::init(&home, plugins_dir, etc_dir);
+    let st = state::init(&work_dir);
     let port: u16 = std::env::var("BIANWRT_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
         .unwrap_or(8088);
 
-    tracing::info!("bianwrt 启动: home={} plugins={} (前端资源已内嵌)", home.display(), st.plugins_dir.display());
+    tracing::info!("bianwrt 启动: work_dir={} (data/plugins/conf)", st.work_dir.display());
 
     // boot-time apply of persisted firewall / dnsmasq config
     tokio::spawn(boot_apply(st.clone()));
@@ -105,7 +101,7 @@ async fn boot_apply(st: AppState) {
     let cfg = firewall::load_config(&st.db.lock().unwrap());
     if cfg.enabled {
         let script = firewall::render_nft(&cfg);
-        let path = st.home.join("bianwrt.nft");
+        let path = st.data_dir.join("bianwrt.nft");
         let _ = std::fs::write(&path, &script);
         let out = tokio::process::Command::new("nft")
             .args(["-f"])

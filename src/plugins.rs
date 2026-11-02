@@ -245,7 +245,7 @@ fn extract_plugin_files(entries: &[PkgEntry], dest: &Path) -> Result<(), String>
 }
 
 fn file_list_path(state: &AppState, name: &str) -> PathBuf {
-    state.home.join("plugin-files").join(format!("{}.list", name))
+    state.data_dir.join("plugin-files").join(format!("{}.list", name))
 }
 
 fn save_file_list(state: &AppState, name: &str, paths: &[String]) {
@@ -359,7 +359,7 @@ pub async fn install(State(state): State<AppState>, mut multipart: Multipart) ->
         let _ = std::os::unix::fs::symlink(&version, &current);
     }
     // 5. 配置目录（类似 OpenWrt 的 /etc/config，卸载默认保留）
-    let cfg_dir = state.etc_dir.join(&name);
+    let cfg_dir = state.conf_dir.join(&name);
     let _ = std::fs::create_dir_all(&cfg_dir);
     let _ = std::fs::write(
         cfg_dir.join("manifest.toml"),
@@ -489,7 +489,7 @@ pub async fn uninstall(
     // 3. 插件目录（ui/manifest/版本）
     let _ = std::fs::remove_dir_all(state.plugins_dir.join(&name));
     // 4. 配置目录：默认保留，勾选才删
-    let cfg_dir = state.etc_dir.join(&name);
+    let cfg_dir = state.conf_dir.join(&name);
     if purge_config {
         let _ = std::fs::remove_dir_all(&cfg_dir);
     }
