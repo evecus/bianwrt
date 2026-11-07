@@ -137,6 +137,20 @@ pub fn is_ip(s: &str) -> bool {
     s.parse::<std::net::IpAddr>().is_ok()
 }
 
+/// 自由文本（SSID / 密码 / 备注）：允许 UTF-8，但禁止控制字符与换行。
+pub fn safe_text(s: &str, max: usize) -> bool {
+    !s.is_empty()
+        && s.len() <= max
+        && !s.chars().any(|c| c.is_control() || c == '\0')
+}
+
+/// HTTP(S) URL 模板：禁止空白与控制字符（参数会以单个 argv 传给 curl，不经 shell）。
+pub fn safe_url(s: &str) -> bool {
+    (s.starts_with("http://") || s.starts_with("https://"))
+        && s.len() <= 1024
+        && !s.chars().any(|c| c.is_control() || c.is_whitespace())
+}
+
 pub fn is_mac(s: &str) -> bool {
     let p: Vec<&str> = s.split(':').collect();
     p.len() == 6 && p.iter().all(|x| x.len() == 2 && x.chars().all(|c| c.is_ascii_hexdigit()))

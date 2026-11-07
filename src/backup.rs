@@ -72,6 +72,11 @@ async fn collect(state: &AppState) -> Result<Files, String> {
         &PathBuf::from("/etc/dnsmasq.d/bianwrt-filter.conf"),
     );
     push_file(&mut files, "generated/panel.nft", &PathBuf::from("/etc/bianwrt/panel.nft"));
+    push_file(
+        &mut files,
+        "etc/hostapd.conf",
+        &PathBuf::from("/etc/hostapd/hostapd.conf"),
+    );
 
     let cr = cmd::run("crontab", &["-l"], 5).await;
     if cr.ok && !cr.stdout.is_empty() {
@@ -358,6 +363,8 @@ pub async fn restore(
             Some(PathBuf::from("/etc/dnsmasq.d/bianwrt.conf"))
         } else if name == "etc/dnsmasq-bianwrt-filter.conf" {
             Some(PathBuf::from("/etc/dnsmasq.d/bianwrt-filter.conf"))
+        } else if name == "etc/hostapd.conf" {
+            Some(PathBuf::from("/etc/hostapd/hostapd.conf"))
         } else if let Some(n) = name.strip_prefix("wireguard/") {
             if cmd::safe(n, 128) {
                 Some(PathBuf::from("/etc/wireguard").join(n))

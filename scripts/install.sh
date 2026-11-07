@@ -18,6 +18,8 @@ for cmd in nft ip crontab systemctl; do
   command -v "$cmd" >/dev/null || echo "[提示] 缺少核心命令 $cmd，相关功能不可用"
 done
 echo "[提示] 按需安装可选组件：apt install nftables iproute2 dnsmasq cron curl dnsutils traceroute conntrack wireguard-tools"
+echo "[提示] 无线 AP 需：apt install iw hostapd；QoS/SQM 需 iproute2 的 tc 与内核 sch_cake / ifb 模块"
+echo "[提示] DDNS 需 curl（后台定时更新）；流量趋势读 /proc/net/dev，硬件监控读 /sys/class/{thermal,hwmon,leds}"
 echo "[提示] 日志/服务/进程/系统设置依赖 systemd（journalctl、systemctl、timedatectl）"
 
 install -Dm755 "$BIN" /usr/local/bin/bianwrt-server

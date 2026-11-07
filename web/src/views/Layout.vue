@@ -28,7 +28,9 @@ import {
   PricetagsOutline, RocketOutline, ExtensionPuzzleOutline,
   ReaderOutline, PeopleOutline, PulseOutline, ServerOutline,
   CalendarOutline, ArchiveOutline, SettingsOutline,
-  LayersOutline, SpeedometerOutline, KeyOutline, FunnelOutline
+  LayersOutline, SpeedometerOutline, KeyOutline, FunnelOutline,
+  WifiOutline, GitCompareOutline, AnalyticsOutline,
+  ThermometerOutline, CloudOutline, BarChartOutline
 } from '@vicons/ionicons5'
 import http from '../lib/http'
 
@@ -44,6 +46,8 @@ const menuOptions = computed(() => [
   {
     type: 'group', label: '状态', key: 'grp-status', children: [
       { label: '仪表盘', key: '/dashboard', icon: icon(StatsChart) },
+      { label: '流量趋势', key: '/traffic', icon: icon(AnalyticsOutline) },
+      { label: '硬件监控', key: '/hardware', icon: icon(ThermometerOutline) },
       { label: '系统日志', key: '/logs', icon: icon(ReaderOutline) },
       { label: '在线客户端', key: '/clients', icon: icon(PeopleOutline) },
       { label: '进程管理', key: '/processes', icon: icon(PulseOutline) }
@@ -52,7 +56,10 @@ const menuOptions = computed(() => [
   {
     type: 'group', label: '网络', key: 'grp-network', children: [
       { label: '网络接口', key: '/network', icon: icon(GitNetwork) },
+      { label: '无线 AP', key: '/wireless', icon: icon(WifiOutline) },
       { label: '路由与接口', key: '/routing', icon: icon(LayersOutline) },
+      { label: '多 WAN', key: '/mwan', icon: icon(GitCompareOutline) },
+      { label: 'QoS / SQM', key: '/qos', icon: icon(BarChartOutline) },
       { label: '网络诊断', key: '/diagnostics', icon: icon(SpeedometerOutline) },
       { label: '防火墙', key: '/firewall', icon: icon(ShieldOutline) },
       { label: 'DHCP / DNS', key: '/dhcp', icon: icon(PlanetOutline) },
@@ -71,6 +78,7 @@ const menuOptions = computed(() => [
   },
   {
     type: 'group', label: '服务', key: 'grp-services', children: [
+      { label: 'DDNS', key: '/ddns', icon: icon(CloudOutline) },
       { label: '插件中心', key: '/plugins', icon: icon(RocketOutline) },
       ...pluginItems.value
     ]

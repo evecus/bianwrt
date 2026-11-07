@@ -3,21 +3,27 @@ mod backup;
 mod clients;
 mod cmd;
 mod cron;
+mod ddns;
 mod dhcpdns;
 mod diag;
 mod dnsfilter;
 mod firewall;
+mod hardware;
+mod mwan;
 mod netcfg;
 mod netif;
 mod pkg;
 mod plugins;
 mod process;
+mod qos;
 mod services;
 mod state;
 mod sysadmin;
 mod syslog;
 mod system;
+mod traffic;
 mod webassets;
+mod wireless;
 mod wireguard;
 
 use axum::extract::DefaultBodyLimit;
@@ -59,6 +65,9 @@ async fn async_main() {
 
     // boot-time apply of persisted firewall / dnsmasq config
     tokio::spawn(boot_apply(st.clone()));
+    // 流量采样器（5s）与 DDNS 后台定时更新（60s 检查）
+    tokio::spawn(traffic::start_sampler(st.data_dir.clone()));
+    tokio::spawn(ddns::start_worker(st.clone()));
 
     let api = Router::new()
         .route("/auth/setup", post(auth::setup))
@@ -139,6 +148,37 @@ async fn async_main() {
         .route("/wg/keygen", post(wireguard::keygen))
         .route("/dnsfilter", get(dnsfilter::get).put(dnsfilter::put))
         .route("/dnsfilter/apply", post(dnsfilter::apply))
+        // ── 状态：流量趋势 / 硬件温度与 LED ─────────────────────────
+        .route("/traffic/interfaces", get(traffic::interfaces))
+        .route("/traffic/live", get(traffic::live))
+        .route("/traffic/history", get(traffic::history))
+        .route("/hardware/summary", get(hardware::summary))
+        .route("/hardware/temps", get(hardware::temps))
+        .route("/hardware/leds", get(hardware::leds))
+        .route("/hardware/led", put(hardware::led_set))
+        // ── 网络：无线 AP / QoS / 多 WAN ─────────────────────────────
+        .route("/wireless/status", get(wireless::status))
+        .route("/wireless/devices", get(wireless::devices))
+        .route("/wireless/stations", get(wireless::stations))
+        .route("/wireless/scan", get(wireless::scan))
+        .route("/wireless/config", get(wireless::config_get).put(wireless::config_put))
+        .route("/wireless/apply", post(wireless::apply))
+        .route("/wireless/action", post(wireless::action))
+        .route("/qos/status", get(qos::status))
+        .route("/qos/config", get(qos::config_get).put(qos::config_put))
+        .route("/qos/apply", post(qos::apply))
+        .route("/qos/clear", post(qos::clear))
+        .route("/mwan/status", get(mwan::status))
+        .route("/mwan/config", get(mwan::config_get).put(mwan::config_put))
+        .route("/mwan/apply", post(mwan::apply))
+        .route("/mwan/clear", post(mwan::clear))
+        // ── 服务：DDNS ──────────────────────────────────────────────
+        .route("/ddns/providers", get(ddns::providers_handler))
+        .route("/ddns/config", get(ddns::config_get).put(ddns::config_put))
+        .route("/ddns/update", post(ddns::update))
+        .route("/ddns/history", get(ddns::history))
+        .route("/ddns/apply", post(ddns::apply))
+        .route("/ddns/clear", post(ddns::clear))
         .layer(middleware::from_fn_with_state(
             st.clone(),
             auth::auth_mw,

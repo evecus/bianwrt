@@ -25,7 +25,13 @@ const routes = [
       { path: 'diagnostics', component: () => import('../views/Diagnostics.vue') },
       { path: 'routing', component: () => import('../views/Routing.vue') },
       { path: 'wireguard', component: () => import('../views/WireGuard.vue') },
-      { path: 'dnsfilter', component: () => import('../views/DnsFilter.vue') }
+      { path: 'dnsfilter', component: () => import('../views/DnsFilter.vue') },
+      { path: 'traffic', component: () => import('../views/Traffic.vue') },
+      { path: 'hardware', component: () => import('../views/Hardware.vue') },
+      { path: 'wireless', component: () => import('../views/Wireless.vue') },
+      { path: 'qos', component: () => import('../views/Qos.vue') },
+      { path: 'mwan', component: () => import('../views/Mwan.vue') },
+      { path: 'ddns', component: () => import('../views/Ddns.vue') }
     ]
   }
 ]
