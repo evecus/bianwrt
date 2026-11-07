@@ -14,7 +14,18 @@ const routes = [
       { path: 'dhcp', component: () => import('../views/Dhcp.vue') },
       { path: 'packages', component: () => import('../views/Packages.vue') },
       { path: 'plugins', component: () => import('../views/Plugins.vue') },
-      { path: 'plugin-page/:name', component: () => import('../views/PluginPage.vue') }
+      { path: 'plugin-page/:name', component: () => import('../views/PluginPage.vue') },
+      { path: 'logs', component: () => import('../views/Logs.vue') },
+      { path: 'processes', component: () => import('../views/Processes.vue') },
+      { path: 'clients', component: () => import('../views/Clients.vue') },
+      { path: 'services', component: () => import('../views/Services.vue') },
+      { path: 'cron', component: () => import('../views/Cron.vue') },
+      { path: 'backup', component: () => import('../views/Backup.vue') },
+      { path: 'system', component: () => import('../views/System.vue') },
+      { path: 'diagnostics', component: () => import('../views/Diagnostics.vue') },
+      { path: 'routing', component: () => import('../views/Routing.vue') },
+      { path: 'wireguard', component: () => import('../views/WireGuard.vue') },
+      { path: 'dnsfilter', component: () => import('../views/DnsFilter.vue') }
     ]
   }
 ]

@@ -13,10 +13,12 @@ else
   echo "未找到 bianwrt-server 二进制（target/release/ 或当前目录）"; exit 1
 fi
 
-# 依赖
-for cmd in nft; do
-  command -v $cmd >/dev/null || echo "[提示] 建议安装 nftables: apt install nftables"
+# 依赖：核心命令缺失会导致对应页面不可用
+for cmd in nft ip crontab systemctl; do
+  command -v "$cmd" >/dev/null || echo "[提示] 缺少核心命令 $cmd，相关功能不可用"
 done
+echo "[提示] 按需安装可选组件：apt install nftables iproute2 dnsmasq cron curl dnsutils traceroute conntrack wireguard-tools"
+echo "[提示] 日志/服务/进程/系统设置依赖 systemd（journalctl、systemctl、timedatectl）"
 
 install -Dm755 "$BIN" /usr/local/bin/bianwrt-server
 mkdir -p /etc/bianwrt/data /etc/bianwrt/plugins /etc/bianwrt/conf

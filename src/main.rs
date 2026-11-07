@@ -1,16 +1,28 @@
 mod auth;
+mod backup;
+mod clients;
+mod cmd;
+mod cron;
 mod dhcpdns;
+mod diag;
+mod dnsfilter;
 mod firewall;
+mod netcfg;
 mod netif;
 mod pkg;
 mod plugins;
+mod process;
+mod services;
 mod state;
+mod sysadmin;
+mod syslog;
 mod system;
 mod webassets;
+mod wireguard;
 
 use axum::extract::DefaultBodyLimit;
 use axum::middleware;
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, post, put};
 use axum::Router;
 use state::AppState;
 use std::path::PathBuf;
@@ -71,6 +83,62 @@ async fn async_main() {
         .route("/plugins/install", post(plugins::install))
         .route("/plugins/{name}", delete(plugins::uninstall))
         .route("/plugins/{name}/{op}", post(plugins::action))
+        // ── 状态：日志 / 进程 / 在线客户端 ──────────────────────────
+        .route("/logs", get(syslog::read))
+        .route("/logs/follow", get(syslog::follow))
+        .route("/processes", get(process::list))
+        .route("/processes/kill", post(process::kill))
+        .route("/clients", get(clients::list))
+        .route("/clients/connections", get(clients::connections))
+        .route("/clients/wol", post(clients::wol))
+        // ── 系统：服务 / 计划任务 / 备份 / 系统设置 ─────────────────
+        .route("/services", get(services::list))
+        .route("/services/action", post(services::action))
+        .route("/services/status", get(services::status))
+        .route("/cron", get(cron::get).put(cron::put))
+        .route("/backup", get(backup::list).post(backup::create))
+        .route("/backup/file/{name}", get(backup::download).delete(backup::delete))
+        .route("/backup/upload", post(backup::upload))
+        .route("/backup/restore", post(backup::restore))
+        .route("/system/info", get(sysadmin::info))
+        .route("/system/hostname", post(sysadmin::hostname))
+        .route("/system/timezone", post(sysadmin::timezone))
+        .route("/system/timezones", get(sysadmin::timezones))
+        .route("/system/ntp", post(sysadmin::ntp))
+        .route("/system/password", post(sysadmin::password))
+        .route("/system/sshkeys", put(sysadmin::ssh_keys_put))
+        .route("/system/power", post(sysadmin::power))
+        // ── 网络：诊断 / 路由与接口 / WireGuard / DNS 过滤 ───────────
+        .route("/diag/tools", get(diag::tools))
+        .route("/diag/ping", post(diag::ping))
+        .route("/diag/traceroute", post(diag::traceroute))
+        .route("/diag/nslookup", post(diag::nslookup))
+        .route("/diag/tcp", post(diag::tcp))
+        .route("/diag/http", post(diag::http))
+        .route(
+            "/netcfg/routes",
+            get(netcfg::routes)
+                .post(netcfg::route_add)
+                .delete(netcfg::route_del),
+        )
+        .route("/netcfg/interfaces", get(netcfg::interfaces))
+        .route("/netcfg/interfaces/link", post(netcfg::link))
+        .route("/netcfg/interfaces/addr", post(netcfg::addr))
+        .route(
+            "/netcfg/persist",
+            get(netcfg::persist_list).put(netcfg::persist_put),
+        )
+        .route("/netcfg/persist/generate", post(netcfg::generate))
+        .route("/netcfg/persist/apply", post(netcfg::persist_apply))
+        .route("/netcfg/persist/file/{name}", delete(netcfg::persist_del))
+        .route("/wg/status", get(wireguard::status))
+        .route("/wg/interfaces", get(wireguard::interfaces))
+        .route("/wg/interface", put(wireguard::put))
+        .route("/wg/interface/{name}", delete(wireguard::del))
+        .route("/wg/action", post(wireguard::action))
+        .route("/wg/keygen", post(wireguard::keygen))
+        .route("/dnsfilter", get(dnsfilter::get).put(dnsfilter::put))
+        .route("/dnsfilter/apply", post(dnsfilter::apply))
         .layer(middleware::from_fn_with_state(
             st.clone(),
             auth::auth_mw,
