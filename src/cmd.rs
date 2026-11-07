@@ -108,6 +108,22 @@ pub fn safe(s: &str, max: usize) -> bool {
         && s.chars().all(|c| c.is_ascii_alphanumeric() || "_-.:/@+=".contains(c))
 }
 
+/// 多级相对路径（包内条目 / 备份条目）：禁止绝对路径、`..`、反斜杠与控制字符。
+pub fn safe_rel(s: &str, max: usize) -> bool {
+    !s.is_empty()
+        && s.len() <= max
+        && !s.starts_with('/')
+        && !s.contains('\\')
+        && !s.chars().any(|c| c.is_control())
+        && s.split('/').all(|seg| !seg.is_empty() && seg != "." && seg != "..")
+}
+
+/// manifest 文本字段：禁止控制字符、换行、引号（防止注入 systemd unit）。
+pub fn safe_manifest_text(s: &str, max: usize) -> bool {
+    s.len() <= max
+        && !s.chars().any(|c| c.is_control() || c == '"' || c == '\'' || c == '\0')
+}
+
 /// 主机名 / 域名 / IP（可含端口分隔符），供 ping、nslookup、DNS 记录使用。
 pub fn is_host(s: &str) -> bool {
     !s.is_empty()

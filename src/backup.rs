@@ -33,6 +33,31 @@ fn push_file(files: &mut Files, name: &str, path: &PathBuf) {
     }
 }
 
+/// 递归收集普通文件（跳过符号链接，例如插件的 current）。
+fn collect_tree(root: &std::path::Path, prefix: &str, files: &mut Files) {
+    fn walk(dir: &std::path::Path, rel: &str, prefix: &str, files: &mut Files) {
+        let Ok(rd) = std::fs::read_dir(dir) else { return };
+        for e in rd.flatten() {
+            let n = e.file_name().to_string_lossy().to_string();
+            if !cmd::safe(&n, 128) {
+                continue;
+            }
+            let r = if rel.is_empty() { n } else { format!("{}/{}", rel, n) };
+            let p = e.path();
+            let is_link = e.file_type().map(|t| t.is_symlink()).unwrap_or(false);
+            if is_link {
+                continue;
+            }
+            if p.is_dir() {
+                walk(&p, &r, prefix, files);
+            } else if p.is_file() {
+                push_file(files, &format!("{}/{}", prefix, r), &p);
+            }
+        }
+    }
+    walk(root, "", prefix, files);
+}
+
 async fn collect(state: &AppState) -> Result<Files, String> {
     let mut files: Files = Vec::new();
     {
@@ -45,16 +70,8 @@ async fn collect(state: &AppState) -> Result<Files, String> {
         std::fs::read(&dbp).map_err(|e| format!("读取数据库失败：{}", e))?,
     ));
 
-    if let Ok(rd) = std::fs::read_dir(&state.conf_dir) {
-        for e in rd.flatten() {
-            if e.path().is_file() {
-                let n = e.file_name().to_string_lossy().to_string();
-                if cmd::safe(&n, 128) {
-                    push_file(&mut files, &format!("conf/{}", n), &e.path());
-                }
-            }
-        }
-    }
+    // conf/ 递归收集：包含插件的 <name>/manifest.toml（卸载时判定 conffiles 的依据）
+    collect_tree(&state.conf_dir, "conf", &mut files);
     push_file(&mut files, "generated/bianwrt.nft", &state.data_dir.join("bianwrt.nft"));
     push_file(
         &mut files,
@@ -96,6 +113,34 @@ async fn collect(state: &AppState) -> Result<Files, String> {
             let n = e.file_name().to_string_lossy().to_string();
             if n.starts_with("bianwrt-") && n.ends_with(".conf") && cmd::safe(&n, 128) {
                 push_file(&mut files, &format!("interfaces.d/{}", n), &e.path());
+            }
+        }
+    }
+
+    // 插件：安装目录（跳过 current 符号链接）、文件清单、systemd unit、rootfs 铺出的文件
+    collect_tree(&state.plugins_dir, "plugins", &mut files);
+    collect_tree(&state.data_dir.join("plugin-files"), "plugin-files", &mut files);
+    if let Ok(rd) = std::fs::read_dir("/etc/systemd/system") {
+        for e in rd.flatten() {
+            let n = e.file_name().to_string_lossy().to_string();
+            if n.starts_with("bianwrt-plugin-") && n.ends_with(".service") && cmd::safe(&n, 128) {
+                push_file(&mut files, &format!("systemd/{}", n), &e.path());
+            }
+        }
+    }
+    // 插件铺到系统根目录的文件（按清单收集，恢复时可还原）
+    if let Ok(rd) = std::fs::read_dir(state.data_dir.join("plugin-files")) {
+        for e in rd.flatten() {
+            if !e.path().is_file() {
+                continue;
+            }
+            if let Ok(list) = std::fs::read_to_string(e.path()) {
+                for line in list.lines().filter(|l| !l.trim().is_empty()) {
+                    let p = line.trim();
+                    if p.starts_with('/') && !p.contains("..") {
+                        push_file(&mut files, &format!("plugin-rootfs{}", p), &PathBuf::from(p));
+                    }
+                }
             }
         }
     }
@@ -316,7 +361,9 @@ pub async fn restore(
             let _ = std::fs::remove_file(&tmp);
             return cmd::fail(format!("挂载备份数据库失败：{}", e));
         }
-        let tables = ["settings", "fw_zones", "fw_rules", "fw_forwards", "dhcp_static"];
+        let tables = [
+            "settings", "fw_zones", "fw_rules", "fw_forwards", "dhcp_static", "plugins",
+        ];
         let r: Result<(), rusqlite::Error> = (|| {
             let tx = db.transaction()?;
             for t in tables {
@@ -348,7 +395,7 @@ pub async fn restore(
     // 恢复受管配置文件（仅白名单路径）
     for (name, data) in &files {
         let target: Option<PathBuf> = if let Some(n) = name.strip_prefix("conf/") {
-            if cmd::safe(n, 128) {
+            if cmd::safe_rel(n, 512) {
                 Some(state.conf_dir.join(n))
             } else {
                 None
@@ -377,6 +424,30 @@ pub async fn restore(
             } else {
                 None
             }
+        } else if let Some(n) = name.strip_prefix("plugins/") {
+            if cmd::safe_rel(n, 512) {
+                Some(state.plugins_dir.join(n))
+            } else {
+                None
+            }
+        } else if let Some(n) = name.strip_prefix("plugin-files/") {
+            if cmd::safe_rel(n, 128) {
+                Some(state.data_dir.join("plugin-files").join(n))
+            } else {
+                None
+            }
+        } else if let Some(n) = name.strip_prefix("systemd/") {
+            if n.starts_with("bianwrt-plugin-") && n.ends_with(".service") && cmd::safe(n, 128) {
+                Some(PathBuf::from("/etc/systemd/system").join(n))
+            } else {
+                None
+            }
+        } else if let Some(n) = name.strip_prefix("plugin-rootfs/") {
+            if cmd::safe_rel(n, 512) {
+                Some(PathBuf::from("/").join(n))
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -398,6 +469,50 @@ pub async fn restore(
             }
             let _ = std::fs::remove_file(&p);
         }
+    }
+
+    // 备份中跳过符号链接，按已恢复的 plugins 表重建 <name>/current -> <version>
+    let plugin_rows: Vec<(String, String)> = {
+        let db = state.db.lock().unwrap();
+        let mut stmt = db.prepare("SELECT name, version FROM plugins").unwrap();
+        let v = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .unwrap()
+            .flatten()
+            .collect();
+        v
+    };
+    for (n, ver) in plugin_rows {
+        let base = state.plugins_dir.join(&n);
+        if !base.join(&ver).is_dir() {
+            continue;
+        }
+        let cur = base.join("current");
+        let _ = std::fs::remove_file(&cur);
+        #[cfg(unix)]
+        if std::os::unix::fs::symlink(&ver, &cur).is_ok() {
+            restored.push(format!("plugins/{}/current", n));
+        }
+    }
+    // 旧格式备份（未打包 plugins/）恢复后，清掉 db 里文件已不存在的孤立插件记录，
+    // 避免菜单/列表出现点不开的幽灵插件。
+    {
+        let db = state.db.lock().unwrap();
+        let rows: Vec<String> = {
+            let mut stmt = db.prepare("SELECT name FROM plugins").unwrap();
+            stmt.query_map([], |r| r.get::<_, String>(0))
+                .unwrap()
+                .flatten()
+                .collect()
+        };
+        for n in rows {
+            if !state.plugins_dir.join(&n).is_dir() {
+                db.execute("DELETE FROM plugins WHERE name=?1", [n]).ok();
+            }
+        }
+    }
+    if cmd::run("systemctl", &["daemon-reload"], 8).await.ok {
+        restored.push("systemd/daemon-reload".into());
     }
 
     cmd::ok(json!({

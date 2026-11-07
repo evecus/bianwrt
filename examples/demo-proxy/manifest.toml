@@ -1,0 +1,23 @@
+[package]
+name = "demo-proxy"
+version = "1.0.0"
+description = "示例插件：反向代理模式 + 官方 SDK 调用面板 API"
+author = "bianwrt"
+homepage = "https://example.com"
+web_mode = "proxy"
+
+# 反向代理：插件自己监听 127.0.0.1:19090，面板把 /plugins/demo-proxy/... 转发过去
+[web]
+port = 19090
+timeout = 15
+
+# 插件自带 HTTP 服务，由面板注册为 bianwrt-plugin-demo-proxy.service
+[service]
+exec = "bin/server.py"
+args = ["--port", "19090"]
+user = "root"
+
+# 依赖自动安装：缺失 python3 时面板会调用 apt-get / opkg / apk 安装
+[deps]
+apt = ["python3"]
+commands = ["python3"]

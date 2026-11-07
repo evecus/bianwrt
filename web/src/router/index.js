@@ -22,6 +22,7 @@ const routes = [
       { path: 'cron', component: () => import('../views/Cron.vue') },
       { path: 'backup', component: () => import('../views/Backup.vue') },
       { path: 'system', component: () => import('../views/System.vue') },
+      { path: 'menu', component: () => import('../views/MenuSettings.vue') },
       { path: 'diagnostics', component: () => import('../views/Diagnostics.vue') },
       { path: 'routing', component: () => import('../views/Routing.vue') },
       { path: 'wireguard', component: () => import('../views/WireGuard.vue') },

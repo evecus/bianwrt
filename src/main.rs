@@ -9,6 +9,7 @@ mod diag;
 mod dnsfilter;
 mod firewall;
 mod hardware;
+mod menu;
 mod mwan;
 mod netcfg;
 mod netif;
@@ -28,7 +29,7 @@ mod wireguard;
 
 use axum::extract::DefaultBodyLimit;
 use axum::middleware;
-use axum::routing::{delete, get, post, put};
+use axum::routing::{any, delete, get, post, put};
 use axum::Router;
 use state::AppState;
 use std::path::PathBuf;
@@ -92,6 +93,7 @@ async fn async_main() {
         .route("/plugins/install", post(plugins::install))
         .route("/plugins/{name}", delete(plugins::uninstall))
         .route("/plugins/{name}/{op}", post(plugins::action))
+        .route("/plugin-ticket/{name}", post(plugins::ticket))
         // ── 状态：日志 / 进程 / 在线客户端 ──────────────────────────
         .route("/logs", get(syslog::read))
         .route("/logs/follow", get(syslog::follow))
@@ -104,6 +106,10 @@ async fn async_main() {
         .route("/services", get(services::list))
         .route("/services/action", post(services::action))
         .route("/services/status", get(services::status))
+        .route("/services/log", get(services::log))
+        .route("/services/autostart", post(services::autostart))
+        .route("/menu/config", get(menu::get_config).put(menu::put_config))
+        .route("/menu/reset", post(menu::reset))
         .route("/cron", get(cron::get).put(cron::put))
         .route("/backup", get(backup::list).post(backup::create))
         .route("/backup/file/{name}", get(backup::download).delete(backup::delete))
@@ -184,10 +190,16 @@ async fn async_main() {
             auth::auth_mw,
         ));
 
+    // 插件页面同样需要登录：gate 校验会话并下发 scoped HttpOnly cookie。
+    // 统一用 any() 入口，按 web_mode 分派静态文件或反向代理（支持全部方法）。
     let plugin_pages = Router::new()
-        .route("/plugins/{name}", get(plugins::plugin_static))
-        .route("/plugins/{name}/", get(plugins::plugin_static))
-        .route("/plugins/{name}/{*rest}", get(plugins::plugin_static_rest));
+        .route("/plugins/{name}", any(plugins::plugin_entry))
+        .route("/plugins/{name}/", any(plugins::plugin_entry))
+        .route("/plugins/{name}/{*rest}", any(plugins::plugin_entry))
+        .layer(middleware::from_fn_with_state(
+            st.clone(),
+            plugins::gate,
+        ));
 
     let app = Router::new()
         .nest("/api", api)

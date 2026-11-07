@@ -9,7 +9,8 @@
     </template>
     <n-spin :show="loading">
       <n-alert v-if="hasWebUi" type="info" :bordered="false" style="margin-bottom: 12px">
-        带界面的插件已出现在左侧栏「服务」分组，点击即可进入插件页面；这里只负责安装与管理。
+        带界面的插件（静态页 / 反向代理）已出现在左侧栏「服务」分组，点击即可进入；这里只负责安装与管理。
+        菜单标题、图标、显隐与排序可在「系统 → 菜单设置」调整。
       </n-alert>
       <n-grid :x-gap="16" :y-gap="16" :cols="3" v-if="plugins.length">
         <n-grid-item v-for="p in plugins" :key="p.name">
@@ -22,8 +23,26 @@
               <n-tag v-if="p.has_service" :type="p.active ? 'success' : p.service_exists ? 'warning' : 'default'" size="small">
                 {{ p.active ? '运行中' : p.service_exists ? '已停止' : '服务未注册' }}
               </n-tag>
-              <n-tag v-else size="small" type="info">纯页面插件</n-tag>
+              <n-tag v-else size="small" type="info">无后台服务</n-tag>
+              <n-tag size="small" :type="p.signed ? 'success' : 'default'">
+                {{ p.signed ? '已签名' : '未签名' }}
+              </n-tag>
+              <n-tag v-if="p.web_mode === 'proxy'" size="small" type="warning">
+                反向代理 :{{ p.proxy_port }}
+              </n-tag>
+              <n-tag v-else-if="!p.has_ui" size="small">无页面</n-tag>
+              <n-tag v-if="p.web_mode === 'none'" size="small">无页面模式</n-tag>
             </n-space>
+            <div v-if="p.deps && (p.deps.requested?.length || p.deps.installed?.length)" style="margin-top: 8px; font-size: 11px; color: #888">
+              依赖 {{ p.deps.manager }} · 声明 {{ (p.deps.requested || []).join(', ') || '—' }}
+              <span v-if="p.deps.installed?.length"> · 本次自动安装 {{ p.deps.installed.join(', ') }}</span>
+            </div>
+            <div v-if="p.checksum" style="margin-top: 8px; font-size: 11px; color: #888; font-family: monospace">
+              sha256 {{ p.checksum.slice(0, 16) }}…
+            </div>
+            <div style="margin-top: 4px; font-size: 11px; color: #888">
+              {{ p.author || '未知作者' }} · {{ p.installed_at || '—' }}
+            </div>
             <template #footer>
               <n-space size="small">
                 <template v-if="p.has_service">
@@ -43,8 +62,8 @@
 
   <n-modal v-model:show="uninstallVisible" preset="dialog" type="warning" :title="`卸载 ${uninstallTarget?.name}`" :positive-text="'确认卸载'" :negative-text="'取消'" :loading="uninstalling" @positive-click="confirmUninstall">
     <n-space vertical>
-      <div>将按文件清单精确清理插件铺到系统的文件，并删除插件目录与 systemd 服务。</div>
-      <n-checkbox v-model:checked="purgeConfig">同时删除配置目录 /etc/bianwrt/conf/{{ uninstallTarget?.name }}（含用户配置，默认保留）</n-checkbox>
+      <div>将按文件清单精确清理插件铺到系统的文件，并删除插件目录与 systemd 服务。manifest 中 conffiles 声明的用户配置默认保留，不随卸载删除。</div>
+      <n-checkbox v-model:checked="purgeConfig">同时删除配置目录与 conffiles（含用户配置，默认保留）</n-checkbox>
     </n-space>
   </n-modal>
 
@@ -67,44 +86,65 @@ const loading = ref(false)
 const fileInput = ref(null)
 const showDoc = ref(false)
 
-const hasWebUi = computed(() => plugins.value.some((p) => p.web_mode === 'static'))
+const hasWebUi = computed(() =>
+  plugins.value.some(
+    (p) => p.web_mode !== 'none' && (p.has_ui || p.web_mode === 'proxy')
+  )
+)
 
-const docText = `# .rpkg 插件包规范
+const docText = `# .rpkg 插件包规范（完整文档见 sdk/README.md）
 
-.rpkg = tar.gz 压缩包，结构：
+.rpkg = tar.gz 包（上传 ≤64MB，展开 ≤256MB / ≤4096 条目）：
 
-  manifest.toml        # 必需：插件元信息
-  rootfs/              # 可选：完整根目录结构，安装时直接铺到 /
-    usr/bin/xxx        #   如 /usr/bin/xxx
-    etc/my-plugin/     #   系统侧配置文件
-  ui/                  # 可选：前端静态页面 (SPA, 含 index.html)
-
-manifest.toml 示例：
+  manifest.toml          # 必需
+  SHA256SUMS             # 可选：逐文件校验，写了必须全匹配
+  manifest.toml.asc      # 可选：GPG 签名（BIANWRT_REQUIRE_SIGNED=1 强制）
+  rootfs/                # 可选：完整根目录结构，铺到 /
+  ui/index.html          # web_mode=static 时挂载
+  bin/…                  # web_mode=proxy / service 的自带程序
 
   [package]
-  name = "my-plugin"        # 小写字母/数字/-
-  version = "1.0.0"
-  description = "示例插件"
-  author = "you"
-  web_mode = "static"
-  conffiles = ["etc/my-plugin/conf.json"]   # 可选：升级时保留用户版本
+  name = "my-plugin"          # 小写字母/数字/-
+  version = "1.0.0"           # 禁止静默降级，需先卸载
+  web_mode = "static"         # static 静态页 / proxy 反向代理 / none 无页面
+  conffiles = ["etc/x.conf"]  # 升级与卸载都保留用户配置
 
-  [service]                  # 可选：注册 systemd 服务
-  exec = "bin/my-plugin"     # 相对包根目录
-  args = ["--port", "9090"]
+  [web]                       # proxy 模式必填
+  port = 19090                # 插件自行监听 127.0.0.1:19090（≥1024）
+  timeout = 15                # 单次请求超时 1~120 秒
+
+  [service]                   # 可选：注册 systemd 服务
+  exec = "bin/server.py"
+  args = ["--port", "19090"]
   user = "root"
 
-  [deps]                     # 可选：apt 依赖，安装时校验
-  apt = ["curl", "dnsmasq"]
+  [deps]                      # 可选：依赖自动安装（默认开启）
+  apt = ["python3"]           # Debian/Ubuntu；apk 系统复用此列表
+  opkg = ["python3"]          # OpenWrt
+  commands = ["python3"]      # 安装后必须能在 PATH 找到
+  # BIANWRT_AUTO_DEPS=0 关闭自动安装，退化为只校验并报错
 
-安装后：
-- rootfs/ 铺到真实根目录（/usr/bin、/etc/... 全根结构，同 OpenWrt ipk）
-- 数据统一在 BIANWRT_WORK_DIR（默认 /etc/bianwrt）下：
-  - data/ — SQLite、防火墙规则文件、插件文件清单 plugin-files/<name>.list
-  - plugins/ — 插件安装目录
-  - conf/ — 插件配置目录 <name>/（同 /etc/config，卸载默认保留）
-- ui 挂载于 /plugins/<name>/，带界面的插件出现在左侧栏「服务」分组
-- systemd 服务名：bianwrt-plugin-<name>.service`
+proxy 模式：面板把 /plugins/<name>/... 反向代理到 127.0.0.1:<port>，
+剥离 token 参数 / Authorization / Cookie，丢弃 Set-Cookie，重写相对 Location，
+解码 chunked 并加 CORS 头；插件只连本机，拿不到管理员凭据。
+iframe 用受限票据前缀 /_bw/<ticket>/ 鉴权（会话 token 的单向派生），
+相对资源与 fetch 自动携带，无需 cookie。
+
+官方 SDK（sdk/bianwrt-sdk.js，拷到 ui/ 后用 <script src="./bianwrt-sdk.js"> 引入）：
+
+  Bianwrt.api.get('/api/system/stats')    // 面板 API（父页面代发）
+  Bianwrt.storage.set('k', 1)             // 插件专属 KV 存储
+  Bianwrt.notify.success('完成')          // 面板全局提示
+  Bianwrt.fetch('api/state')              // proxy 模式访问自身后端
+  Bianwrt.ready / Bianwrt.info            // 桥就绪 / 插件名与主题
+
+页面运行在 sandbox iframe（opaque origin）：读不到管理员 token、
+localStorage 与 cookie；静态资源请用相对路径（./app.js）。
+
+安全约束：所有 manifest 字段禁止控制字符/换行/引号（防 unit 注入）；
+禁止绝对路径与 .. 路径穿越；安装事务化，失败自动回滚
+rootfs / 插件目录 / current / systemd unit / 数据库记录。
+备份会一并打包插件目录、文件清单、systemd unit 与运行期元数据。`
 
 function triggerUpload() {
   fileInput.value.click()
@@ -120,7 +160,11 @@ async function onFile(e) {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000
     })
-    message.success(`插件 ${data.name} 安装成功`)
+    const extra = [
+      data.proxy_port ? `反向代理 127.0.0.1:${data.proxy_port}` : '',
+      data.deps?.installed?.length ? `自动安装依赖 ${data.deps.installed.join(', ')}` : ''
+    ].filter(Boolean).join(' · ')
+    message.success(`插件 ${data.name} 安装成功${extra ? '（' + extra + '）' : ''}`)
     load()
   } catch (err) {
     message.error(errMsg(err))
@@ -150,7 +194,12 @@ async function confirmUninstall() {
   uninstalling.value = true
   try {
     const { data } = await http.delete(`/plugins/${p.name}`, { params: { purge_config: purgeConfig.value ? '1' : '0' } })
-    message.success(`已卸载 ${p.name}（清理 ${data.removed_files} 个系统文件${data.config_kept ? '，配置已保留' : '，配置已删除'}）`)
+    const keptList = data.kept_conffiles || []
+    message.success(
+      `已卸载 ${p.name}（清理 ${data.removed_files} 个系统文件` +
+        (keptList.length ? `，保留 ${keptList.length} 个用户配置` : '') +
+        `，${data.config_kept ? '配置目录已保留' : '配置目录已删除'}）`
+    )
     uninstallVisible.value = false
     load()
   } catch (e) {

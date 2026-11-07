@@ -17,6 +17,8 @@ pub struct AppState {
     pub plugins_dir: PathBuf,
     /// 插件配置目录（类似 OpenWrt /etc/config）
     pub conf_dir: PathBuf,
+    /// 插件安装 / 卸载 / 服务操作的互斥锁，避免并发写入同一插件目录
+    pub plugin_lock: std::sync::Arc<tokio::sync::Mutex<()>>,
 }
 
 /// 统一目录布局：<work_dir>/{data,plugins,conf}
@@ -81,6 +83,7 @@ pub fn init(work_dir: &PathBuf) -> AppState {
         data_dir,
         plugins_dir,
         conf_dir,
+        plugin_lock: std::sync::Arc::new(tokio::sync::Mutex::new(())),
     }
 }
 

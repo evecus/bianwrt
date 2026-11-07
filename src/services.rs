@@ -110,3 +110,86 @@ pub async fn status(Query(q): Query<StatusQuery>) -> Response {
         "ok": out.ok
     }))
 }
+
+/// 服务日志：journalctl -u <unit>（journald 不可用时回退 systemctl status）。
+#[derive(Deserialize)]
+pub struct LogQuery {
+    pub unit: String,
+    #[serde(default)]
+    pub lines: Option<u32>,
+}
+
+pub async fn log(Query(q): Query<LogQuery>) -> Response {
+    if !valid_unit(&q.unit) {
+        return cmd::err("服务名包含非法字符");
+    }
+    let n = q.lines.unwrap_or(200).clamp(10, 2000).to_string();
+    let text: String;
+    let source: &str;
+    if cmd::which("journalctl") {
+        let out = cmd::run(
+            "journalctl",
+            &[
+                "-u",
+                &q.unit,
+                "-n",
+                &n,
+                "--no-pager",
+                "--no-hostname",
+                "-o",
+                "short-iso",
+            ],
+            15,
+        )
+        .await;
+        text = if out.stdout.trim().is_empty() {
+            format!("(journalctl 无输出)\n{}", out.stderr.trim())
+        } else {
+            out.stdout
+        };
+        source = "journalctl";
+    } else {
+        let out = cmd::run("systemctl", &["status", "--no-pager", "-l", "-n", &n, &q.unit], 12).await;
+        text = if out.stdout.is_empty() { out.stderr } else { out.stdout };
+        source = "systemctl status（journalctl 不可用）";
+    }
+    cmd::ok(json!({ "text": text, "source": source, "lines": n }))
+}
+
+/// 开机自启开关：只改变 enable/disable，不启停当前服务。
+#[derive(Deserialize)]
+pub struct AutostartReq {
+    pub unit: String,
+    pub enabled: bool,
+}
+
+pub async fn autostart(Json(req): Json<AutostartReq>) -> Response {
+    if !valid_unit(&req.unit) {
+        return cmd::err("服务名包含非法字符");
+    }
+    let op = if req.enabled { "enable" } else { "disable" };
+    let out = cmd::run("systemctl", &[op, &req.unit], 40).await;
+    if !out.ok {
+        return cmd::fail(format!(
+            "{} {} 失败: {}",
+            op,
+            req.unit,
+            if out.stderr.trim().is_empty() {
+                out.stdout.trim()
+            } else {
+                out.stderr.trim()
+            }
+        ));
+    }
+    let state = cmd::run("systemctl", &["is-enabled", &req.unit], 10).await;
+    let enabled = state.stdout.trim().trim_end_matches('\n').to_string();
+    cmd::ok(json!({
+        "ok": true,
+        "enabled": enabled,
+        "msg": format!("{} 已{}开机自启", req.unit, if req.enabled { "启用" } else { "禁用" })
+    }))
+}
+
+fn valid_unit(s: &str) -> bool {
+    cmd::safe(s, 128) && (s.ends_with(".service") || s.contains('@'))
+}

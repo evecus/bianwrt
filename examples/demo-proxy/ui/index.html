@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>demo-proxy · bianwrt SDK 示例</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #0f172a; color: #e2e8f0;
+         font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { color: #63e2b7; font-size: 20px; margin: 0 0 6px; }
+  .sub { color: #94a3b8; font-size: 13px; margin-bottom: 18px; }
+  .badges span { display: inline-block; background: #1e293b; border: 1px solid #334155;
+                 border-radius: 999px; padding: 3px 10px; margin: 0 6px 6px 0; font-size: 12px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+  button { background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+           border-radius: 6px; padding: 8px 14px; cursor: pointer; font-size: 13px; }
+  button:hover { border-color: #63e2b7; color: #63e2b7; }
+  button.primary { background: #63e2b7; color: #0f172a; border-color: #63e2b7; font-weight: 600; }
+  pre { background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 14px;
+        min-height: 190px; max-height: 46vh; overflow: auto; font-size: 12px;
+        line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .hint { color: #64748b; font-size: 12px; margin-top: 12px; line-height: 1.7; }
+  code { background: #1e293b; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <h1>demo-proxy · 官方 SDK 示例</h1>
+  <div class="sub">反向代理模式（web_mode=proxy）+ postMessage 桥；页面运行在不带 allow-same-origin 的 sandbox iframe 中。</div>
+  <div class="badges" id="badges"><span>加载中…</span></div>
+
+  <div class="btns">
+    <button class="primary" onclick="panelStats()">① 面板 /api/system/stats</button>
+    <button onclick="writeStore()">② 写入 KV 存储</button>
+    <button onclick="readStore()">③ 读取 KV 存储</button>
+    <button onclick="backendGet()">④ 插件后端 GET</button>
+    <button onclick="backendPost()">⑤ 插件后端 POST</button>
+    <button onclick="Bianwrt.notify.success('来自 demo-proxy 的通知')">⑥ 面板通知</button>
+  </div>
+  <pre id="out">等待操作…</pre>
+  <div class="hint">
+    本页面通过 <code>Bianwrt.api</code> 调面板 API（父页面代发，插件拿不到管理员 token）；
+    通过 <code>Bianwrt.storage</code> 持久化数据（opaque origin 下 localStorage 不可用）；
+    通过 <code>Bianwrt.fetch()</code> 访问插件自身后端（面板已为代理响应加上 CORS 头）。
+  </div>
+
+  <!-- 官方 SDK：与 sdk/bianwrt-sdk.js 同步，打包脚本会自动复制 -->
+  <script src="./bianwrt-sdk.js"></script>
+  <script>
+    var out = document.getElementById('out')
+    function log(title, obj) {
+      out.textContent = '▶ ' + title + '\n' +
+        (typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2))
+    }
+    function fail(e) { out.textContent = '✗ ' + (e && e.message ? e.message : String(e)) }
+
+    Bianwrt.ready.then(function (info) {
+      document.getElementById('badges').innerHTML =
+        '<span>插件 ' + info.plugin + '</span>' +
+        '<span>模式 proxy</span>' +
+        '<span>SDK v' + Bianwrt.version + '</span>' +
+        '<span>主题 ' + info.theme + '</span>'
+      log('桥已就绪', info)
+    }).catch(fail)
+
+    function panelStats() {
+      Bianwrt.api.get('/api/system/stats').then(function (d) { log('面板系统状态', d) }).catch(fail)
+    }
+    function writeStore() {
+      Bianwrt.storage.set('lastVisit', new Date().toISOString())
+        .then(function () { return Bianwrt.storage.set('counter', 42) })
+        .then(function () { return Bianwrt.storage.keys() })
+        .then(function (k) { log('写入完成，当前键', k) })
+        .catch(fail)
+    }
+    function readStore() {
+      Promise.all([Bianwrt.storage.get('lastVisit'), Bianwrt.storage.get('counter')])
+        .then(function (r) { log('KV 读取', { lastVisit: r[0], counter: r[1] }) })
+        .catch(fail)
+    }
+    function backendGet() {
+      Bianwrt.fetch('api/state').then(function (r) { return r.json() })
+        .then(function (d) { log('插件后端 /api/state', d) }).catch(fail)
+    }
+    function backendPost() {
+      Bianwrt.fetch('api/echo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hello: 'from plugin page' })
+      }).then(function (r) { return r.json() })
+        .then(function (d) { log('插件后端 /api/echo', d) }).catch(fail)
+    }
+  </script>
+</body>
+</html>

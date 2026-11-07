@@ -1,0 +1,75 @@
+{
+  "brand": "Bianwrt",
+  "icons": [
+    "StatsChart", "AnalyticsOutline", "ThermometerOutline", "ReaderOutline",
+    "PeopleOutline", "PulseOutline", "GitNetwork", "WifiOutline",
+    "LayersOutline", "GitCompareOutline", "BarChartOutline", "SpeedometerOutline",
+    "ShieldOutline", "PlanetOutline", "FunnelOutline", "KeyOutline",
+    "SettingsOutline", "ServerOutline", "CalendarOutline", "ArchiveOutline",
+    "PricetagsOutline", "CloudOutline", "RocketOutline", "ExtensionPuzzleOutline",
+    "HomeOutline", "HardwareChipOutline", "ConstructOutline", "ColorPaletteOutline",
+    "ListOutline", "AppsOutline", "FlashOutline", "HeartOutline",
+    "StarOutline", "LeafOutline", "CogOutline", "CubeOutline",
+    "EyeOutline", "LockClosedOutline", "TimeOutline", "TrendingUpOutline",
+    "GridOutline", "BookOutline", "CodeSlashOutline", "TerminalOutline",
+    "MenuOutline", "InformationCircleOutline", "RefreshOutline"
+  ],
+  "groups": [
+    {
+      "key": "grp-status",
+      "label": "状态",
+      "icon": "PulseOutline",
+      "visible": true,
+      "items": [
+        { "key": "/dashboard", "label": "仪表盘", "icon": "StatsChart", "visible": true },
+        { "key": "/traffic", "label": "流量趋势", "icon": "AnalyticsOutline", "visible": true },
+        { "key": "/hardware", "label": "硬件监控", "icon": "ThermometerOutline", "visible": true },
+        { "key": "/logs", "label": "系统日志", "icon": "ReaderOutline", "visible": true },
+        { "key": "/clients", "label": "在线客户端", "icon": "PeopleOutline", "visible": true },
+        { "key": "/processes", "label": "进程管理", "icon": "PulseOutline", "visible": true }
+      ]
+    },
+    {
+      "key": "grp-network",
+      "label": "网络",
+      "icon": "GitNetwork",
+      "visible": true,
+      "items": [
+        { "key": "/network", "label": "网络接口", "icon": "GitNetwork", "visible": true },
+        { "key": "/wireless", "label": "无线 AP", "icon": "WifiOutline", "visible": true },
+        { "key": "/routing", "label": "路由与接口", "icon": "LayersOutline", "visible": true },
+        { "key": "/mwan", "label": "多 WAN", "icon": "GitCompareOutline", "visible": true },
+        { "key": "/qos", "label": "QoS / SQM", "icon": "BarChartOutline", "visible": true },
+        { "key": "/diagnostics", "label": "网络诊断", "icon": "SpeedometerOutline", "visible": true },
+        { "key": "/firewall", "label": "防火墙", "icon": "ShieldOutline", "visible": true },
+        { "key": "/dhcp", "label": "DHCP / DNS", "icon": "PlanetOutline", "visible": true },
+        { "key": "/dnsfilter", "label": "DNS 过滤", "icon": "FunnelOutline", "visible": true },
+        { "key": "/wireguard", "label": "WireGuard", "icon": "KeyOutline", "visible": true }
+      ]
+    },
+    {
+      "key": "grp-system",
+      "label": "系统",
+      "icon": "SettingsOutline",
+      "visible": true,
+      "items": [
+        { "key": "/system", "label": "系统设置", "icon": "SettingsOutline", "visible": true },
+        { "key": "/services", "label": "服务与启动项", "icon": "ServerOutline", "visible": true },
+        { "key": "/cron", "label": "计划任务", "icon": "CalendarOutline", "visible": true },
+        { "key": "/backup", "label": "备份 / 恢复", "icon": "ArchiveOutline", "visible": true },
+        { "key": "/packages", "label": "软件包", "icon": "PricetagsOutline", "visible": true },
+        { "key": "/menu", "label": "菜单设置", "icon": "MenuOutline", "visible": true }
+      ]
+    },
+    {
+      "key": "grp-services",
+      "label": "服务",
+      "icon": "RocketOutline",
+      "visible": true,
+      "items": [
+        { "key": "/ddns", "label": "DDNS", "icon": "CloudOutline", "visible": true },
+        { "key": "/plugins", "label": "插件中心", "icon": "RocketOutline", "visible": true }
+      ]
+    }
+  ]
+}

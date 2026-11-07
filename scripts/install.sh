@@ -21,6 +21,11 @@ echo "[提示] 按需安装可选组件：apt install nftables iproute2 dnsmasq 
 echo "[提示] 无线 AP 需：apt install iw hostapd；QoS/SQM 需 iproute2 的 tc 与内核 sch_cake / ifb 模块"
 echo "[提示] DDNS 需 curl（后台定时更新）；流量趋势读 /proc/net/dev，硬件监控读 /sys/class/{thermal,hwmon,leds}"
 echo "[提示] 日志/服务/进程/系统设置依赖 systemd（journalctl、systemctl、timedatectl）"
+echo "[提示] 插件签名校验需 gpg（可选）：apt install gnupg；BIANWRT_REQUIRE_SIGNED=1 可强制只装签名包"
+echo "[提示] 插件页面需登录后访问；安装以 root 执行并铺 rootfs/ 到 /，请仅安装可信来源的 .rpkg"
+echo "[提示] 官方插件 SDK 见 sdk/README.md；proxy 模式插件自行监听 127.0.0.1:<port>，由面板反向代理"
+echo "[提示] 依赖自动安装默认开启（apt-get / opkg / apk），BIANWRT_AUTO_DEPS=0 可关闭"
+echo "[提示] 菜单标题/图标/显隐/排序：系统 → 菜单设置；服务日志与开机自启开关：系统 → 服务与启动项"
 
 install -Dm755 "$BIN" /usr/local/bin/bianwrt-server
 mkdir -p /etc/bianwrt/data /etc/bianwrt/plugins /etc/bianwrt/conf
